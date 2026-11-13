@@ -1,0 +1,37 @@
+{
+  "_comment": "Day 1 lab values. P = pod number (10.P.x.x). Edit these to change what every generated config uses.",
+
+  "ollama_url": "http://localhost:11434",
+  "model": "qwen2.5-coder:7b",
+
+  "enable_secret": "pass",
+  "line_password": "pass",
+  "admin_user": "admin",
+  "admin_secret": "pass",
+  "dns_server_host": 10,
+  "domain_name": "keykeymo",
+
+  "vlans": {
+    "1":   {"name": "MGMTDATA",  "pool": "MGMTDATA",  "domain": "MGMTDATA.COM"},
+    "10":  {"name": "WIFIVLAN",  "pool": "WIFIDATA",  "domain": "WIFIDATA.COM"},
+    "50":  {"name": "IPCCTVLAN", "pool": "IPCCTV",    "domain": "IPCCTV.COM"},
+    "100": {"name": "VOICEVLAN", "pool": "VOICEVLAN", "domain": "VOICEVLAN.COM"}
+  },
+  "dhcp_exclude_up_to": 100,
+
+  "default_ports": {
+    "access_points": ["Fa0/2", "Fa0/4"],
+    "cameras":       ["Fa0/6", "Fa0/8"],
+    "phones":        ["Fa0/5", "Fa0/7"],
+    "cucm":          "Fa0/3"
+  },
+
+  "host_octet": {
+    "coretaas": 2,
+    "corebaba": 4,
+    "cucm": 8
+  },
+
+  "phone_model": "8945",
+  "wifi": {"ssid": "SECPLUS-{pod}wifi", "password": "C1sc0123", "channel": 9}
+}

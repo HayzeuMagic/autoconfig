@@ -1,0 +1,28 @@
+{# Shared by every device: Day 1 "basic config" block #}
+config t
+ hostname {{ hostname }}
+ enable secret {{ d.enable_secret }}
+ service password-encryption
+ no logging console
+ no ip domain-lookup
+ line console 0
+  password {{ d.line_password }}
+  login
+  exec-timeout 0 0
+ line vty 0 14
+  password {{ d.line_password }}
+  login
+  exec-timeout 0 0
+ exit
+{% if ssh %}
+!
+! --- AAA + SSH (Day 1 Securing Infra) ---
+ username {{ d.admin_user }} privilege 15 secret {{ d.admin_secret }}
+ ip domain-name {{ d.domain_name }}
+ crypto key generate rsa modulus 1024
+ ip ssh version 2
+ line vty 0 14
+  login local
+  transport input ssh telnet
+ exit
+{% endif %}
