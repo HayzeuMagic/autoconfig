@@ -10,6 +10,8 @@ That gives you `COREtaas-61` and `COREbaba-61` with exactly the TASK1 commands f
 
 The `m` in `10.m.1.2` is your number. Type the real IP (`10.61.1.2`), or type `10.m.1.2` and add `pod 61`.
 
+**[PROMPTS.md](PROMPTS.md)** lists every prompt that works, what each one builds, and which parts of the lab notes aren't supported yet.
+
 ## How it works
 
 ```
