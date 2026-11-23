@@ -1,23 +1,27 @@
 {
-  "_comment": "Day 1 lab values. P = pod number (10.P.x.x). Edit these to change what every generated config uses.",
+  "_comment": "Day 1 lab values. P = pod number (the 'm' in 10.m.x.x). Edit these to change what every generated config uses.",
 
   "ollama_url": "http://localhost:11434",
   "model": "qwen2.5-coder:7b",
+  "_model_note": "If this model isn't pulled, the builder uses whichever Ollama model you do have.",
 
   "enable_secret": "pass",
   "line_password": "pass",
   "admin_user": "admin",
   "admin_secret": "pass",
   "dns_server_host": 10,
-  "domain_name": "keykeymo",
+  "domain_name": "rivanit.com",
 
   "vlans": {
-    "1":   {"name": "MGMTDATA",  "pool": "MGMTDATA",  "domain": "MGMTDATA.COM"},
-    "10":  {"name": "WIFIVLAN",  "pool": "WIFIDATA",  "domain": "WIFIDATA.COM"},
-    "50":  {"name": "IPCCTVLAN", "pool": "IPCCTV",    "domain": "IPCCTV.COM"},
-    "100": {"name": "VOICEVLAN", "pool": "VOICEVLAN", "domain": "VOICEVLAN.COM"}
+    "1":   {"name": "default",      "svi": "MGMTDATA",  "pool": "MGMTDATA",  "domain": "MGMTDATA.COM"},
+    "10":  {"name": "WIFIVLAN",     "svi": "WIRELESS",  "pool": "WIFIDATA",  "domain": "WIFIDATA.COM"},
+    "50":  {"name": "IPCameraVLAN", "svi": "IPCCTV",    "pool": "IPCCTV",    "domain": "IPCCTV.COM"},
+    "100": {"name": "VOICEVLAN",    "svi": "VOICEVLAN", "pool": "VOICEVLAN", "domain": "VOICEVLAN.COM"}
   },
+  "extra_vlans": {"69": "vlanNIrobert", "70": "EXTRAVLAN", "71": "HRD-POLICY"},
   "dhcp_exclude_up_to": 100,
+
+  "uplink": {"ports": "Fa0/10-12", "channel_group": 1},
 
   "default_ports": {
     "access_points": ["Fa0/2", "Fa0/4"],
@@ -25,13 +29,23 @@
     "phones":        ["Fa0/5", "Fa0/7"],
     "cucm":          "Fa0/3"
   },
+  "default_camera_hosts": [6, 8],
 
   "host_octet": {
+    "edge": 1,
     "coretaas": 2,
     "corebaba": 4,
     "cucm": 8
   },
 
   "phone_model": "8945",
-  "wifi": {"ssid": "SECPLUS-{pod}wifi", "password": "C1sc0123", "channel": 9}
+  "wifi": {"ssid": "SECPLUS-{pod}wifi", "password": "C1sc0123", "channel": 9},
+
+  "securecrt": {
+    "exe": "",
+    "_exe_note": "Leave empty to auto-find SecureCRT.exe in Program Files.",
+    "script_language": "Python3",
+    "baud": 9600,
+    "save_config": true
+  }
 }

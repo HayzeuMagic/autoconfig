@@ -1,0 +1,8 @@
+{# SVIs for every lab VLAN. octet = this switch's last octet (2 for taas, 4 for baba) #}
+{% for vid, v in d.vlans.items() %}
+ int vlan {{ vid }}
+  no shutdown
+  ip add 10.{{ pod }}.{{ vid }}.{{ octet }} 255.255.255.0
+  description {{ v.svi }}
+{% endfor %}
+ exit

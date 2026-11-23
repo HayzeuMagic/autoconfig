@@ -16,7 +16,7 @@ config t
  exit
 {% if ssh %}
 !
-! --- AAA + SSH (Day 1 Securing Infra) ---
+! --- SSH: username {{ d.admin_user }} / {{ d.admin_secret }} (telnet still works, same login) ---
  username {{ d.admin_user }} privilege 15 secret {{ d.admin_secret }}
  ip domain-name {{ d.domain_name }}
  crypto key generate rsa modulus 1024

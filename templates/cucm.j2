@@ -5,7 +5,7 @@
   no shutdown
   ip add 10.{{ pod }}.100.{{ octet }} 255.255.255.0
  exit
- ip route 0.0.0.0 0.0.0.0 10.{{ pod }}.100.{{ d.host_octet.corebaba }}
+ ip route 0.0.0.0 0.0.0.0 10.{{ pod }}.100.{{ hosts.corebaba }}
 !
 ! --- CallManager Express ---
  no telephony-service
@@ -33,6 +33,9 @@
 {% endif %}
 {% endfor %}
 end
+{% if save %}
+write memory
+{% endif %}
 !
 ! --- Verify ---
 ! show ephone registered

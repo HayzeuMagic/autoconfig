@@ -15,6 +15,9 @@ conf t
   ssid {{ wifi.ssid }}
   bridge-group 1
 end
+{% if save %}
+write memory
+{% endif %}
 !
 ! Connect your phone to "{{ wifi.ssid }}"{% for cam in cameras %} and browse http://{{ cam.ip }}{% endfor %}
 
