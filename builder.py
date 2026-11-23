@@ -36,6 +36,8 @@ ROLES = ["coretaas", "corebaba", "cucm", "aironet"]          # build order
 HOSTNAMES = {"corebaba": "COREbaba-{pod}", "coretaas": "COREtaas-{pod}",
              "cucm": "CUCM-{pod}", "aironet": "aironet-{pod}"}
 SWITCHES = ("coretaas", "corebaba")
+LAST_COM = HERE / "out" / "last_com_port.txt"
+USB_SERIAL_RE = r"usb|ch340|ch341|prolific|pl2303|ftdi|cp210|silicon labs|uart|serial converter"
 
 # How people actually type the device names in class.
 NAME_RE = {
@@ -485,16 +487,21 @@ def command_lines(text):
 # ---------------------------------------------------------------------------
 # 5. SecureCRT: a script per device that types the config into the open tab.
 # ---------------------------------------------------------------------------
-def securecrt_script(name, ip, text, pod):
+def securecrt_script(configs, pod):
+    """One script for one or more devices. With several, it stays in the same SecureCRT tab
+    and asks you to move the console cable between devices."""
     src = (HERE / "templates" / "securecrt_typer.py").read_text(encoding="utf-8")
     passwords = list(dict.fromkeys([DEFAULTS["line_password"], DEFAULTS["enable_secret"],
                                     DEFAULTS["admin_secret"]]))
+    devices = "[\n" + "".join(
+        f"    {{'name': {name!r}, 'ip': {ip!r}, 'lines': [\n"
+        + "".join(f"        {l!r},\n" for l in command_lines(text)) + "    ]},\n"
+        for _, name, ip, text in configs) + "]"
     for key, val in {
         "__LANGUAGE__": DEFAULTS["securecrt"]["script_language"],
-        "__HOSTNAME_REPR__": repr(name), "__MGMT_IP_REPR__": repr(ip),
+        "__DEVICES_REPR__": devices,
         "__USERNAME_REPR__": repr(DEFAULTS["admin_user"]), "__PASSWORDS_REPR__": repr(passwords),
-        "__LINES_REPR__": "[\n" + "".join(f"    {l!r},\n" for l in command_lines(text)) + "]",
-        "__HOSTNAME__": name, "__POD__": str(pod),
+        "__TITLE__": ", ".join(name for _, name, _, _ in configs), "__POD__": str(pod),
     }.items():
         src = src.replace(key, val)
     return src
@@ -517,21 +524,59 @@ def find_securecrt():
 
 
 def com_ports():
-    try:
+    """{'COM3': 'USB-SERIAL CH340 (COM3)', ...} with USB console cables first."""
+    ports = {}
+    try:  # Device Manager names tell a USB console cable apart from the PC's own COM1
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-CimInstance Win32_PnPEntity | Where-Object { $_.Name -match '\\(COM\\d+\\)' } "
+             "| ForEach-Object { $_.Name }"],
+            capture_output=True, text=True, timeout=30).stdout
+        for line in out.splitlines():
+            m = re.search(r"\((COM\d+)\)", line)
+            if m:
+                ports[m.group(1)] = line.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:  # registry as a backup (no friendly names)
         import winreg
         key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DEVICEMAP\SERIALCOMM")
+        i = 0
+        while True:
+            port = winreg.EnumValue(key, i)[1]
+            ports.setdefault(port, port)
+            i += 1
     except (ImportError, OSError):
-        return []
-    ports, i = [], 0
-    while True:
-        try:
-            ports.append(winreg.EnumValue(key, i)[1])
-        except OSError:
-            return sorted(ports, key=lambda s: int(re.sub(r"\D", "", s) or 0))
-        i += 1
+        pass
+
+    def rank(item):
+        port, desc = item
+        usb = bool(re.search(USB_SERIAL_RE, desc, re.I))
+        return (not usb, -int(re.sub(r"\D", "", port) or 0))
+    return dict(sorted(ports.items(), key=rank))
 
 
-def run_securecrt(configs, scripts, via, com):
+def pick_com_port():
+    """Always ask. Default = the port used last time, else the USB cable."""
+    ports = com_ports()
+    if not ports:
+        return input("No COM ports found. Is the USB console cable plugged in? Type the port (e.g. COM3) "
+                     "or press Enter to cancel: ").strip().upper()
+    last = LAST_COM.read_text(encoding="utf-8").strip() if LAST_COM.is_file() else ""
+    default = last if last in ports else next(iter(ports))
+    print("\nCOM ports on this PC:")
+    names = list(ports)
+    for i, port in enumerate(names, 1):
+        print(f"  {i}) {port:<6} {ports[port]}{'   <- default' if port == default else ''}")
+    ans = input(f"Which one is the console cable? [Enter = {default}]: ").strip().upper()
+    if not ans:
+        return default
+    if ans.isdigit() and 1 <= int(ans) <= len(names):
+        return names[int(ans) - 1]
+    return ans if ans.startswith("COM") else f"COM{ans}"
+
+
+def run_securecrt(configs, scripts, all_script, via, com):
     exe = find_securecrt()
     if not exe:
         print("\nSecureCRT.exe not found. Set \"securecrt.exe\" in lab_defaults.json, or in SecureCRT:\n"
@@ -549,26 +594,19 @@ def run_securecrt(configs, scripts, via, com):
               "(i.e. after the first console run).")
         return
 
+    com = com.upper() if com else pick_com_port()
     if not com:
-        ports = com_ports()
-        if len(ports) == 1:
-            com = ports[0]
-        else:
-            hint = f" (found: {', '.join(ports)})" if ports else " (none found - is the USB console cable plugged in?)"
-            com = input(f"Which COM port is the console cable on{hint}? e.g. COM3: ").strip().upper()
-            if not com:
-                print("No COM port, not opening SecureCRT.")
-                return
-    print(f"\nConsole cable on {com} @ {baud} baud.")
-    for (_, name, _, _), script in zip(configs, scripts):
-        ans = input(f"Plug the console cable into {name}, then press Enter (s = skip, q = quit): ").strip().lower()
-        if ans == "q":
-            break
-        if ans == "s":
-            continue
-        subprocess.Popen([exe, "/T", "/SCRIPT", str(script), "/SERIAL", com, "/BAUD", baud])
-        print(f"  SecureCRT is typing {name}'s config. When it pops up 'Disconnect the console?', say Yes "
-              "before moving the cable.")
+        print("No COM port, not opening SecureCRT.")
+        return
+    LAST_COM.parent.mkdir(exist_ok=True)
+    LAST_COM.write_text(com, encoding="utf-8")
+    print(f"\nConsole cable on {com} @ {baud} baud. (Close any SecureCRT tab already using {com} first.)")
+    # One Serial tab for every device: the script asks you to move the cable between them.
+    subprocess.Popen([exe, "/T", "/SCRIPT", str(all_script), "/SERIAL", com, "/BAUD", baud])
+    names = [name for _, name, _, _ in configs]
+    print(f"SecureCRT opened one {com} tab for {', '.join(names)}.")
+    if len(names) > 1:
+        print("Plug the cable into each device when SecureCRT asks, then click Yes. It stays in the same tab.")
 
 
 def check_reachable(configs):
@@ -648,19 +686,23 @@ def build(prompt, args):
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "plan.json").write_text(json.dumps({"_prompt": prompt, **plan}, indent=2), encoding="utf-8")
     scripts = []
-    for _, name, ip, text in configs:
+    for cfg in configs:
+        _, name, _, text = cfg
         (folder / f"{name}.txt").write_text(text, encoding="utf-8")
         script = folder / f"{name}.securecrt.py"
-        script.write_text(securecrt_script(name, ip, text, plan["pod"]), encoding="utf-8")
+        script.write_text(securecrt_script([cfg], plan["pod"]), encoding="utf-8")
         scripts.append(script)
         if not args.quiet:
             print(f"\n{text}")
+    all_script = folder / "ALL.securecrt.py"
+    all_script.write_text(securecrt_script(configs, plan["pod"]), encoding="utf-8")
     print(f"\nSaved to {folder}:")
     for _, name, _, _ in configs:
         print(f"  {name}.txt  (paste it)   {name}.securecrt.py  (SecureCRT: Script > Run)")
+    print(f"  ALL.securecrt.py  (every device in one console tab, move the cable when it asks)")
 
     if args.securecrt:
-        run_securecrt(configs, scripts, args.via, args.com)
+        run_securecrt(configs, scripts, all_script, args.via, args.com)
     if args.push:
         push(configs, args.telnet)
     if args.check:

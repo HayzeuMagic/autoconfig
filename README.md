@@ -23,7 +23,7 @@ The `m` in `10.m.1.2` is your number. Type the real IP (`10.61.1.2`), or type `1
 1. **The AI only fills in a plan.** Which devices, their IPs, cameras, phones and so on. Ollama's `format` option forces the answer into a JSON schema.
 2. **Code checks the plan.** Every IP, MAC and number has to appear in your prompt, or it's dropped with a `!` warning. Plain regex rules also read the prompt (`coretaas ... 10.61.1.2`), so a small model that misses something doesn't break the build. If Ollama is off, the rules alone still build the switches.
 3. **Templates write the commands.** `templates/*.j2` are the lab notes with `{{ pod }}` in place of `61`. The AI never writes IOS commands, so it can't produce a wrong one.
-4. **SecureCRT types it.** Each device also gets a `<name>.securecrt.py` script. It gets through the fresh-switch setup dialog (answers `no`), logs in, runs `enable`, then sends one line at a time and waits for the `#` prompt before the next line. On a 9600-baud console, a big paste drops lines; this doesn't. At the end it pops up any lines IOS rejected.
+4. **SecureCRT types it.** Each device gets a `<name>.securecrt.py` script, and `ALL.securecrt.py` does every device in one console tab. It skips the fresh-switch setup dialog with Ctrl+C (never answers it), logs in, runs `enable`, then sends one line at a time and waits for the `#` prompt before the next line. On a 9600-baud console, a big paste drops lines; this doesn't. At the end it pops up any lines IOS rejected.
 
 ## Setup
 
@@ -39,7 +39,7 @@ Any pulled model works. If `qwen2.5-coder:7b` is missing, the builder uses the b
 | Command | What it does |
 |---|---|
 | `python builder.py "..."` | Build the configs into `out/podN/` |
-| `--securecrt` | Open SecureCRT on the console cable and type each config in. It asks you to move the cable between switches |
+| `--securecrt` | Open one SecureCRT tab on the console cable (e.g. Serial-COM3) and type every config in. Between switches it stays in the same tab and asks you to move the cable |
 | `--securecrt --com COM4` | Pick the COM port (auto-detected if there's only one) |
 | `--securecrt --via telnet` | Type it over telnet instead (only after the device already has its IP) |
 | `--check` | Afterwards, test telnet (TCP 23) to each device |
@@ -51,7 +51,7 @@ Any pulled model works. If `qwen2.5-coder:7b` is missing, the builder uses the b
 | `--push` / `--push --telnet` | Old way: send it with Netmiko over SSH/telnet (asks first) |
 | `--model llama3.2` | Use another Ollama model |
 
-No `--securecrt`? Connect in SecureCRT yourself, then **Script > Run...** and pick `out/pod61/COREtaas-61.securecrt.py`. Or just paste the `.txt`.
+No `--securecrt`? Connect in SecureCRT yourself, then **Script > Run...** and pick `out/pod61/ALL.securecrt.py` (all devices, move the cable when it asks) or one device's `.securecrt.py`. Or just paste the `.txt`.
 
 ## Checking it in SecureCRT
 
