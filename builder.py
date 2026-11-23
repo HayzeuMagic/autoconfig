@@ -544,7 +544,7 @@ def run_securecrt(configs, scripts, via, com):
                 print(f"  {name}: no IP to telnet to, skipped")
                 continue
             print(f"  Opening SecureCRT: telnet {ip} -> {name}")
-            subprocess.Popen([exe, "/T", "/TELNET", ip, "/SCRIPT", str(script)])
+            subprocess.Popen([exe, "/T", "/SCRIPT", str(script), "/TELNET", ip])
         print("Telnet only works once the device already has its IP + vty password "
               "(i.e. after the first console run).")
         return
@@ -566,7 +566,7 @@ def run_securecrt(configs, scripts, via, com):
             break
         if ans == "s":
             continue
-        subprocess.Popen([exe, "/T", "/SERIAL", com, "/BAUD", baud, "/SCRIPT", str(script)])
+        subprocess.Popen([exe, "/T", "/SCRIPT", str(script), "/SERIAL", com, "/BAUD", baud])
         print(f"  SecureCRT is typing {name}'s config. When it pops up 'Disconnect the console?', say Yes "
               "before moving the cable.")
 
