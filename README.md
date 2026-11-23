@@ -1,88 +1,164 @@
-# cisco-ai-builder
+# autoconfig
 
-Say what you want in plain English. A local Ollama model reads it, the builder writes the Day 1 lab configs, and SecureCRT types them into the switches over the console cable or telnet.
+Type what you want in plain English. Ollama (free, runs on your PC) reads it, the builder writes the lab configs, and SecureCRT types them into the switches over the console cable.
+
+> The screenshots use pod **61** (`10.61.1.2`, `10.61.1.4`). Use your own number.
+
+## Contents
+
+- [Part 1: Setup](#part-1-setup)
+- [Part 2: Commands](#part-2-commands)
+- [Part 3: Results](#part-3-results)
+- [All prompts](#all-prompts)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Part 1: Setup
+
+You only do this once.
+
+### Step 1: Install the programs
+
+- [Python 3](https://www.python.org/downloads/) (tick **Add python.exe to PATH**)
+- [Ollama](https://ollama.com/download)
+- SecureCRT
+
+### Step 2: Get the files
+
+**Option A:** on GitHub click **Code > Download ZIP**, then extract it.
+
+**Option B:**
 
 ```
-python builder.py "I want to configure my cisco switches. coretaas will have an ip of 10.61.1.2 and corebaba is 10.61.1.4" --securecrt
+git clone https://github.com/HayzeuMagic/autoconfig.git
 ```
 
-That gives you `COREtaas-61` and `COREbaba-61` with exactly the TASK1 commands from class: basic config, SVIs, trunk + EtherChannel LACP on Fa0/10-12, DHCP pools, VLANs 10/50/69/70/71/100, the access ports (APs, cameras, CUCM, phones), and camera reservations. Then SecureCRT opens on your console cable and types it in for you.
+### Step 3: Install the requirements and the AI model
 
-The `m` in `10.m.1.2` is your number. Type the real IP (`10.61.1.2`), or type `10.m.1.2` and add `pod 61`.
-
-**[PROMPTS.md](PROMPTS.md)** lists every prompt that works, what each one builds, and which parts of the lab notes aren't supported yet.
-
-## How it works
-
-```
- your prompt ──► Ollama ──► JSON plan ──► checks + rules ──► Jinja2 templates ──► .txt config
-                 "understands you"        throw out made-up     the lab notes'        + .securecrt.py
-                                          values                commands              ──► SecureCRT types it
-```
-
-1. **The AI only fills in a plan.** Which devices, their IPs, cameras, phones and so on. Ollama's `format` option forces the answer into a JSON schema.
-2. **Code checks the plan.** Every IP, MAC and number has to appear in your prompt, or it's dropped with a `!` warning. Plain regex rules also read the prompt (`coretaas ... 10.61.1.2`), so a small model that misses something doesn't break the build. If Ollama is off, the rules alone still build the switches.
-3. **Templates write the commands.** `templates/*.j2` are the lab notes with `{{ pod }}` in place of `61`. The AI never writes IOS commands, so it can't produce a wrong one.
-4. **SecureCRT types it.** Each device gets a `<name>.securecrt.py` script, and `ALL.securecrt.py` does every device in one console tab. It skips the fresh-switch setup dialog with Ctrl+C (never answers it), logs in, runs `enable`, then sends one line at a time and waits for the `#` prompt before the next line. On a 9600-baud console, a big paste drops lines; this doesn't. At the end it pops up any lines IOS rejected.
-
-## Setup
+Open PowerShell in the folder and run:
 
 ```
 pip install -r requirements.txt
 ollama pull qwen2.5-coder:7b
 ```
 
-Any pulled model works. If `qwen2.5-coder:7b` is missing, the builder uses the best one you have (e.g. `llama3.2`).
+![Setup](docs/images/01-setup.png)
 
-## Usage
+Any model works. If `qwen2.5-coder:7b` isn't there, the builder uses one you have (e.g. `llama3.2`).
 
-| Command | What it does |
+---
+
+## Part 2: Commands
+
+### Step 1: Plug the console cable into COREtaas
+
+### Step 2: Run your prompt with `--securecrt`
+
+```
+python builder.py "I want to configure my cisco switches. coretaas will have an ip of 10.61.1.2 and corebaba is 10.61.1.4" --securecrt
+```
+
+### Step 3: Pick the COM port
+
+Press **Enter** for the default (the USB console cable), or type the number. It remembers your choice next time.
+
+![Run the builder](docs/images/02-run-builder.png)
+
+SecureCRT opens one **Serial-COM3** tab.
+
+### Options
+
+| Add this | What it does |
 |---|---|
-| `python builder.py "..."` | Build the configs into `out/podN/` |
-| `--securecrt` | Open one SecureCRT tab on the console cable (e.g. Serial-COM3) and type every config in. Between switches it stays in the same tab and asks you to move the cable |
-| `--securecrt --com COM4` | Pick the COM port (auto-detected if there's only one) |
-| `--securecrt --via telnet` | Type it over telnet instead (only after the device already has its IP) |
-| `--check` | Afterwards, test telnet (TCP 23) to each device |
-| `--no-ai` | Skip Ollama, use the rules only (fast, offline) |
-| `--show-raw` | Show the AI's answer before the checks |
-| `--pod 61` | Force the pod number |
+| `--securecrt` | Type the configs in over the console cable |
+| `--com COM3` | Skip the COM port question |
+| `--via telnet` | Type it over telnet (only after the switch has its IP) |
+| `--check` | Test telnet to each switch afterwards |
+| `--no-ai` | Skip Ollama, use the built-in rules (fast, switches only) |
 | `--no-save` | Leave out `write memory` |
-| `--plan out/pod61/plan.json` | Re-render a saved plan with no AI |
-| `--push` / `--push --telnet` | Old way: send it with Netmiko over SSH/telnet (asks first) |
 | `--model llama3.2` | Use another Ollama model |
 
-No `--securecrt`? Connect in SecureCRT yourself, then **Script > Run...** and pick `out/pod61/ALL.securecrt.py` (all devices, move the cable when it asks) or one device's `.securecrt.py`. Or just paste the `.txt`.
+No `--securecrt`? The configs are still saved in `out\pod61\`. Paste the `.txt`, or in SecureCRT use **Script > Run...** and pick `ALL.securecrt.py`.
 
-## Checking it in SecureCRT
+---
 
-After the script finishes, both switches are reachable:
+## Part 3: Results
 
-- **Console cable**: password `pass`, enable `pass`.
-- **Telnet** from a PC in VLAN 1 (10.m.1.x): `telnet 10.61.1.2` (COREtaas) and `telnet 10.61.1.4` (COREbaba), password `pass`.
-- `show int trunk`, `show etherchannel summary`, `show ip int brief`, `show vlan brief` (they're listed at the bottom of each config).
+### Step 1: Click **Yes** when it asks for COREtaas
 
-## What it can build
+![Plug into COREtaas](docs/images/03-plug-coretaas.png)
 
-| You say | Device | Management IP |
-|---|---|---|
-| switches, coretaas | `COREtaas-m`: SVIs, VLANs, trunk/LACP, default gateway | 10.m.1.2 (or what you type) |
-| switches, corebaba, cameras, phones, access point | `COREbaba-m`: everything in TASK1 | 10.m.1.4 (or what you type) |
-| ip phones, cucm, call manager | `CUCM-m` (telephony-service, ephone-dn, ephones) | 10.m.100.8 |
-| access point, aironet | `aironet-m` (SSID, WPA) | 10.m.10.3 |
+### Step 2: Let it type
 
-Add-ons you can ask for in the same sentence: `with ospf`, `default route`, `ssh`, `cameras at 10.61.50.6 mac 001a.2b3c.4d5e` (makes the MAC reservation), `block the cameras from wifi`, `no etherchannel`.
+It presses **Ctrl+C** at the setup dialog, goes to `enable`, then types one line at a time. Don't type while it runs.
 
-Lab values (passwords, VLAN names, ports, DNS, SecureCRT path, model) are in `lab_defaults.json`.
+![Typing the config](docs/images/04-typing.png)
 
-## Fixes compared to the raw lab notes
+### Step 3: Move the cable to COREbaba, click **Yes**
 
-- COREtaas also creates VLANs 10/50/100. Without them its SVIs for those VLANs stay down.
-- COREtaas gets `ip default-gateway 10.m.1.4` so you can telnet to it from other VLANs, not only VLAN 1.
-- Camera reservations with no MAC become comments, not `client-identifier 001a.xxxx.yyyy` (which IOS rejects).
-- `write memory` at the end, so a reload doesn't wipe the lab.
+It stays in the same Serial-COM3 tab.
 
-## Adding a new lab (e.g. EDGE, OSPF on the router)
+![Move the cable](docs/images/05-move-cable.png)
 
-1. Copy the lab's commands into `templates/<name>.j2` and replace the pod number with `{{ pod }}`.
-2. Add `<name>` to `ROLES`, `HOSTNAMES` and `NAME_RE` in `builder.py`.
-3. Add a line about it to `SYSTEM_PROMPT` so the AI knows when to pick it.
+### Step 4: Read the summary
+
+`no errors` means every line was accepted. Any rejected lines are listed here.
+
+![Done](docs/images/06-done.png)
+
+### Step 5: Check it
+
+```
+show etherchannel summary
+show ip int brief
+show vlan brief
+telnet 10.61.1.2
+```
+
+![Check](docs/images/07-check.png)
+
+| Login | Password |
+|---|---|
+| Console / telnet | `pass` |
+| enable | `pass` |
+
+---
+
+## All prompts
+
+Change `61` to your number. Add `--securecrt` to type it in.
+
+| Prompt | Builds |
+|---|---|
+| `I want to configure my cisco switches. coretaas will have an ip of 10.61.1.2 and corebaba is 10.61.1.4` | TASK1 on both switches: SVIs, VLANs, trunk + LACP on Fa0/10-12, DHCP pools, access ports |
+| `configure core taas 10.61.1.2 only` | COREtaas only |
+| `configure my switches pod 61, coretaas is 10.m.1.2 and corebaba 10.m.1.4` | Same as the first one, using `m` |
+| `... and corebaba is 10.61.1.4, no etherchannel` | Both switches without the trunk/LACP |
+| `configure corebaba 10.61.1.4 with ip cameras at 10.61.50.6 mac 001a.2b3c.4d06 and 10.61.50.8 mac 001a.2b3c.4d08` | COREbaba + camera DHCP reservations |
+| `... and block them from wifi` | Adds the ACL that blocks Wi-Fi from the cameras |
+| `configure corebaba 10.61.1.4 with ospf, ssh, and a default route to the edge` | COREbaba + OSPF, SSH (`admin` / `pass`), default route |
+| `set up the cucm for pod 61 with ip phones 6111 mac cafe.face.baba and 6122 mac fafa.caca.baba` | CUCM-61 + phones, and COREbaba |
+
+**Everything at once:**
+
+```
+I want to configure my cisco switches. coretaas will have an ip of 10.61.1.2 and corebaba is 10.61.1.4 with ospf, ssh and a default route, cameras at 10.61.50.6 mac 001a.2b3c.4d06 and 10.61.50.8 mac 001a.2b3c.4d08, ip phones 6111 mac cafe.face.baba and 6122 mac fafa.caca.baba
+```
+
+**Not supported yet:** EDGE router, NAT, dial-peers, analog phones, IVR, SIP, Windows Server. See [PROMPTS.md](PROMPTS.md) for details.
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Wrong COM port | Check **Device Manager > Ports (COM & LPT)**, then add `--com COM3` |
+| "COM3 is in use" | Close the other SecureCRT tab using COM3 |
+| `Can't reach Ollama` | Open the Ollama app. It still builds the switches without it |
+| `SecureCRT.exe not found` | Put its path in `lab_defaults.json` under `securecrt.exe` |
+| `wrong password` in the summary | The switch has an old password. Erase it (`write erase`, `reload`) and run again |
+| `ROMMON` in the summary | Type `boot` on the switch, then run again |
+| Telnet doesn't connect | Your PC must be in VLAN 1 (`10.61.1.x`). Check `show etherchannel summary` |
+| `% Invalid input` on `encapsulation dot1q` | Normal on a 2960, ignore it |
