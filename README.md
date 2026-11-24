@@ -31,6 +31,7 @@ You only do this once.
 **Option B:**
 
 ```
+cd desktop
 git clone https://github.com/HayzeuMagic/autoconfig.git
 ```
 
@@ -39,6 +40,7 @@ git clone https://github.com/HayzeuMagic/autoconfig.git
 Open PowerShell in the folder and run:
 
 ```
+cd autoconfig
 pip install -r requirements.txt
 ollama pull qwen2.5-coder:7b
 ```
