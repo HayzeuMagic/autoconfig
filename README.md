@@ -2,7 +2,7 @@
 
 Type what you want in plain English. Ollama (free, runs on your PC) reads it, the builder writes the lab configs, and SecureCRT types them into the switches over the console cable.
 
-> The screenshots use pod **61** (`10.61.1.2`, `10.61.1.4`). Use your own number.
+> The screenshots use pod **m** (`10.m.1.2`, `10.m.1.4`). Use your own number.
 
 ## Contents
 
@@ -58,7 +58,7 @@ Any model works. If `qwen2.5-coder:7b` isn't there, the builder uses one you hav
 ### Step 2: Run your prompt with `--securecrt`
 
 ```
-python builder.py "I want to configure my cisco switches. coretaas will have an ip of 10.61.1.2 and corebaba is 10.61.1.4" --securecrt
+python builder.py "I want to configure my cisco switches. coretaas will have an ip of 10.m.1.2 and corebaba is 10.m.1.4" --securecrt
 ```
 
 ### Step 3: Pick the COM port
@@ -81,7 +81,7 @@ SecureCRT opens one **Serial-COM3** tab.
 | `--no-save` | Leave out `write memory` |
 | `--model llama3.2` | Use another Ollama model |
 
-No `--securecrt`? The configs are still saved in `out\pod61\`. Paste the `.txt`, or in SecureCRT use **Script > Run...** and pick `ALL.securecrt.py`.
+No `--securecrt`? The configs are still saved in `out\podm\`. Paste the `.txt`, or in SecureCRT use **Script > Run...** and pick `ALL.securecrt.py`.
 
 ---
 
@@ -115,7 +115,7 @@ It stays in the same Serial-COM3 tab.
 show etherchannel summary
 show ip int brief
 show vlan brief
-telnet 10.61.1.2
+telnet 10.m.1.2
 ```
 
 ![Check](docs/images/07-check.png)
@@ -129,23 +129,23 @@ telnet 10.61.1.2
 
 ## All prompts
 
-Change `61` to your number. Add `--securecrt` to type it in.
+Change `m` to your number. Add `--securecrt` to type it in.
 
 | Prompt | Builds |
 |---|---|
-| `I want to configure my cisco switches. coretaas will have an ip of 10.61.1.2 and corebaba is 10.61.1.4` | TASK1 on both switches: SVIs, VLANs, trunk + LACP on Fa0/10-12, DHCP pools, access ports |
-| `configure core taas 10.61.1.2 only` | COREtaas only |
-| `configure my switches pod 61, coretaas is 10.m.1.2 and corebaba 10.m.1.4` | Same as the first one, using `m` |
-| `... and corebaba is 10.61.1.4, no etherchannel` | Both switches without the trunk/LACP |
-| `configure corebaba 10.61.1.4 with ip cameras at 10.61.50.6 mac 001a.2b3c.4d06 and 10.61.50.8 mac 001a.2b3c.4d08` | COREbaba + camera DHCP reservations |
+| `I want to configure my cisco switches. coretaas will have an ip of 10.m.1.2 and corebaba is 10.m.1.4` | TASK1 on both switches: SVIs, VLANs, trunk + LACP on Fa0/10-12, DHCP pools, access ports |
+| `configure core taas 10.m.1.2 only` | COREtaas only |
+| `configure my switches pod m, coretaas is 10.m.1.2 and corebaba 10.m.1.4` | Same as the first one, using `m` |
+| `... and corebaba is 10.m.1.4, no etherchannel` | Both switches without the trunk/LACP |
+| `configure corebaba 10.m.1.4 with ip cameras at 10.m.50.6 mac 001a.2b3c.4d06 and 10.m.50.8 mac 001a.2b3c.4d08` | COREbaba + camera DHCP reservations |
 | `... and block them from wifi` | Adds the ACL that blocks Wi-Fi from the cameras |
-| `configure corebaba 10.61.1.4 with ospf, ssh, and a default route to the edge` | COREbaba + OSPF, SSH (`admin` / `pass`), default route |
-| `set up the cucm for pod 61 with ip phones 6111 mac cafe.face.baba and 6122 mac fafa.caca.baba` | CUCM-61 + phones, and COREbaba |
+| `configure corebaba 10.m.1.4 with ospf, ssh, and a default route to the edge` | COREbaba + OSPF, SSH (`admin` / `pass`), default route |
+| `set up the cucm for pod m with ip phones m11 mac cafe.face.baba and m22 mac fafa.caca.baba` | CUCM-m + phones, and COREbaba |
 
 **Everything at once:**
 
 ```
-I want to configure my cisco switches. coretaas will have an ip of 10.61.1.2 and corebaba is 10.61.1.4 with ospf, ssh and a default route, cameras at 10.61.50.6 mac 001a.2b3c.4d06 and 10.61.50.8 mac 001a.2b3c.4d08, ip phones 6111 mac cafe.face.baba and 6122 mac fafa.caca.baba
+I want to configure my cisco switches. coretaas will have an ip of 10.m.1.2 and corebaba is 10.m.1.4 with ospf, ssh and a default route, cameras at 10.m.50.6 mac 001a.2b3c.4d06 and 10.m.50.8 mac 001a.2b3c.4d08, ip phones m11 mac cafe.face.baba and m22 mac fafa.caca.baba
 ```
 
 **Not supported yet:** EDGE router, NAT, dial-peers, analog phones, IVR, SIP, Windows Server. See [PROMPTS.md](PROMPTS.md) for details.
@@ -162,5 +162,5 @@ I want to configure my cisco switches. coretaas will have an ip of 10.61.1.2 and
 | `SecureCRT.exe not found` | Put its path in `lab_defaults.json` under `securecrt.exe` |
 | `wrong password` in the summary | The switch has an old password. Erase it (`write erase`, `reload`) and run again |
 | `ROMMON` in the summary | Type `boot` on the switch, then run again |
-| Telnet doesn't connect | Your PC must be in VLAN 1 (`10.61.1.x`). Check `show etherchannel summary` |
+| Telnet doesn't connect | Your PC must be in VLAN 1 (`10.m.1.x`). Check `show etherchannel summary` |
 | `% Invalid input` on `encapsulation dot1q` | Normal on a 2960, ignore it |
